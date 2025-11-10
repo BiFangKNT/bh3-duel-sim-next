@@ -9,12 +9,22 @@ from bh3_duel_sim.simulator import (
     run_single_verbose_battle,
 )
 
+MIN_PLAYERS_FOR_LOG = 2
+
 
 def main() -> None:
     """主流程: 每个对阵 1 万场循环赛, 再输出一场示例战斗日志."""
     simulator = BattleSimulator()
     roster = build_valkyrie_roster()
-    roster = {name: roster[name] for name in ("科拉莉", "布洛妮娅")}
+    roster = {
+        name: roster[name]
+        for name in [
+            "科拉莉",
+            "布洛妮娅",
+            # "比安卡",
+            # "琪亚娜",
+        ]
+    }
     overall, matchup = round_robin_statistics(simulator, roster, iterations_per_pair=10_000)
     print("整体胜率(每个对手 1 万场):")
     for name, rate in overall.items():
@@ -28,7 +38,7 @@ def main() -> None:
         )
 
     names = list(roster.keys())
-    if len(names) >= 2:
+    if len(names) >= MIN_PLAYERS_FOR_LOG:
         print("\n示例对局日志:")
         run_single_verbose_battle(simulator, roster[names[0]], roster[names[1]])
 

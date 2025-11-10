@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Callable, Tuple
+from typing import Callable
 
-from .base import BaseCharacter
 from ..logger import BattleLogger
 from ..stats import CombatStats
+from .base import BaseCharacter
 
 
 class PlaceholderCombatant(BaseCharacter):
@@ -21,17 +21,15 @@ class PlaceholderCombatant(BaseCharacter):
         passive_heal_ratio: float = 0.05,
     ) -> None:
         super().__init__(name, stats)
-        self.active_cooldown = active_cooldown
+        self.configure_active_cooldown(active_cooldown)
         self.bleed_damage = bleed_damage
         self.passive_heal_ratio = passive_heal_ratio
-        self._current_cooldown = 0
         self._stunned = False
         self._confused = False
 
     def reset_for_battle(self) -> None:
         """重置冷却并调用父类重置."""
         super().reset_for_battle()
-        self._current_cooldown = 0
         self._stunned = False
         self._confused = False
 
@@ -44,46 +42,30 @@ class PlaceholderCombatant(BaseCharacter):
         self._handle_confusion(logger)
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
-        bleed = self.states.get("流血")
-        if not bleed:
-            return
-        bleed["剩余回合"] -= 1
-        logger.log(
-            f"{self.name} 受到状态:流血 影响, 持续伤害 {bleed['伤害']:.2f} "
-            f"(剩余 {bleed['剩余回合']} 回合)"
-        )
-        self.take_damage(bleed["伤害"], logger, "状态:流血")
-        if bleed["剩余回合"] <= 0:
-            logger.log(f"{self.name} 的流血状态结束")
-            del self.states["流血"]
+        def effect(state: dict[str, float], remaining: int) -> None:
+            logger.log(
+                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
+                f"(剩余 {remaining} 回合)"
+            )
+            self.take_damage(state["伤害"], logger, "状态:流血")
+
+        self.process_state("流血", logger, effect, end_message=f"{self.name} 的流血状态结束")
 
     def _handle_stun(self, logger: BattleLogger) -> None:
-        stun = self.states.get("眩晕")
-        if not stun:
-            return
-        stun["剩余回合"] -= 1
-        self._stunned = True
-        logger.log(
-            f"{self.name} 受到状态:眩晕 影响, 本回合无法发动主动或普攻 "
-            f"(剩余 {stun['剩余回合']} 回合)"
-        )
-        if stun["剩余回合"] <= 0:
-            logger.log(f"{self.name} 的眩晕状态结束")
-            del self.states["眩晕"]
+        def effect(_: dict[str, float], remaining: int) -> None:
+            self._stunned = True
+            logger.log(
+                f"{self.name} 受到状态:眩晕 影响, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)"
+            )
+
+        self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
 
     def _handle_confusion(self, logger: BattleLogger) -> None:
-        confuse = self.states.get("混乱")
-        if not confuse:
-            return
-        confuse["剩余回合"] -= 1
-        self._confused = True
-        logger.log(
-            f"{self.name} 陷入混乱, 普攻会伤害自己 "
-            f"(剩余 {confuse['剩余回合']} 回合)"
-        )
-        if confuse["剩余回合"] <= 0:
-            logger.log(f"{self.name} 的混乱状态结束")
-            del self.states["混乱"]
+        def effect(_: dict[str, float], remaining: int) -> None:
+            self._confused = True
+            logger.log(f"{self.name} 陷入混乱, 普攻会伤害自己 (剩余 {remaining} 回合)")
+
+        self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         """被动技能: 每回合为自己回复固定比例生命."""
@@ -97,14 +79,10 @@ class PlaceholderCombatant(BaseCharacter):
 
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         """主动技能: 冷却为 0 时造成额外伤害并叠加流血."""
-        if self._current_cooldown > 0:
-            self._current_cooldown -= 1
+        if not self.consume_active_charge():
             return False
-        self._current_cooldown = self.active_cooldown
         damage = self.calculate_skill_damage(self.effective_attack() * 1.5, opponent)
-        logger.log(
-            f"{self.name} 释放主动技能, 造成 {damage:.2f} 并附加流血"
-        )
+        logger.log(f"{self.name} 释放主动技能, 造成 {damage:.2f} 并附加流血")
         opponent.take_damage(damage, logger, "主动技能")
         opponent.states["流血"] = {"伤害": self.bleed_damage, "剩余回合": 2}
         return True
@@ -122,7 +100,7 @@ class PlaceholderCombatant(BaseCharacter):
         super().perform_basic_attack(opponent, logger)
 
 
-def build_placeholder_fighters() -> Tuple[Callable[[], BaseCharacter], Callable[[], BaseCharacter]]:
+def build_placeholder_fighters() -> tuple[Callable[[], BaseCharacter], Callable[[], BaseCharacter]]:
     """构建可重复实例化的占位角色."""
     stats_a = CombatStats(max_hp=1500.0, attack=240.0, defense=60.0, speed=120.0)
     stats_b = CombatStats(max_hp=1650.0, attack=220.0, defense=80.0, speed=110.0)

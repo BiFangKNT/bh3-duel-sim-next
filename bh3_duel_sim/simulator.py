@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import Callable, Dict, List, Tuple
+from typing import Callable
 
 from bh3_duel_sim.characters.base import BaseCharacter
 from bh3_duel_sim.logger import BattleLogger
@@ -42,13 +42,13 @@ class BattleSimulator:
 
     def _decide_order(
         self, fighter_a: BaseCharacter, fighter_b: BaseCharacter
-    ) -> List[Tuple[BaseCharacter, BaseCharacter]]:
+    ) -> list[tuple[BaseCharacter, BaseCharacter]]:
         """根据速度决定先后手,速度相同时随机."""
         if fighter_a.stats.speed > fighter_b.stats.speed:
             return [(fighter_a, fighter_b), (fighter_b, fighter_a)]
         if fighter_b.stats.speed > fighter_a.stats.speed:
             return [(fighter_b, fighter_a), (fighter_a, fighter_b)]
-        if self.rng.random() < 0.5:
+        if self.rng.random() < SAME_SPEED_THRESHOLD:
             return [(fighter_a, fighter_b), (fighter_b, fighter_a)]
         return [(fighter_b, fighter_a), (fighter_a, fighter_b)]
 
@@ -79,7 +79,7 @@ def mass_battle_statistics(
     spawn_a: Callable[[], BaseCharacter],
     spawn_b: Callable[[], BaseCharacter],
     iterations: int = 10_000,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """重复模拟多场对局并统计胜率."""
     sample_a = spawn_a()
     sample_b = spawn_b()
@@ -87,7 +87,7 @@ def mass_battle_statistics(
     name_b = sample_b.name
     del sample_a
     del sample_b
-    wins: Dict[str, int] = {name_a: 0, name_b: 0}
+    wins: dict[str, int] = {name_a: 0, name_b: 0}
     quiet_logger = BattleLogger(enabled=False)
     for _ in range(iterations):
         winner = simulator.simulate_once(spawn_a(), spawn_b(), quiet_logger)
@@ -107,18 +107,18 @@ def run_single_verbose_battle(
 
 def round_robin_statistics(
     simulator: BattleSimulator,
-    roster: Dict[str, Callable[[], BaseCharacter]],
+    roster: dict[str, Callable[[], BaseCharacter]],
     iterations_per_pair: int = 10_000,
-) -> Tuple[Dict[str, float], Dict[Tuple[str, str], Dict[str, float]]]:
+) -> tuple[dict[str, float], dict[tuple[str, str], dict[str, float]]]:
     """对整套角色做循环赛统计."""
     names = list(roster.keys())
-    if len(names) < 2:
+    if len(names) < MIN_ROSTER_SIZE:
         raise ValueError("循环赛至少需要两名角色")
 
     total_matches_per_character = iterations_per_pair * (len(names) - 1)
     quiet_logger = BattleLogger(enabled=False)
-    wins: Dict[str, int] = {name: 0 for name in names}
-    matchup_rates: Dict[Tuple[str, str], Dict[str, float]] = {}
+    wins: dict[str, int] = {name: 0 for name in names}
+    matchup_rates: dict[tuple[str, str], dict[str, float]] = {}
 
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
@@ -141,3 +141,5 @@ def round_robin_statistics(
         for name in names
     }
     return overall, matchup_rates
+MIN_ROSTER_SIZE = 2
+SAME_SPEED_THRESHOLD = 0.5
