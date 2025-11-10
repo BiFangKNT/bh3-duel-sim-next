@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Dict
+import random
+from typing import Dict, Optional
 
 from bh3_duel_sim.logger import BattleLogger
 from bh3_duel_sim.stats import CombatStats
@@ -18,6 +19,29 @@ class BaseCharacter:
         self.states: Dict[str, Dict[str, float]] = {}
         self.bonus_attack = 0.0
         self.bonus_defense = 0.0
+        self._rng: Optional[random.Random] = None
+
+    def bind_rng(self, rng: random.Random) -> None:
+        """在战斗开始时由驱动绑定随机源."""
+        self._rng = rng
+
+    def _require_rng(self) -> random.Random:
+        if self._rng is None:
+            raise RuntimeError("未绑定随机源")
+        return self._rng
+
+    def roll_chance(self, probability: float) -> bool:
+        """根据绑定随机源判定概率事件."""
+        if not 0.0 <= probability <= 1.0:
+            raise ValueError("概率需要位于[0, 1]")
+        return self._require_rng().random() < probability
+
+    def calculate_skill_damage(self, base_damage: float, opponent: "BaseCharacter") -> float:
+        """技能伤害通用处理: 伤害值也需受防御影响."""
+        raw = max(0.0, base_damage)
+        mitigated = max(0.0, raw - opponent.effective_defense())
+        floor = raw * 0.05  # 最低伤害,防止被完全抵消
+        return max(mitigated, floor)
 
     def reset_for_battle(self) -> None:
         """恢复满血并清空状态."""
@@ -39,7 +63,14 @@ class BaseCharacter:
         """计算当前防御力."""
         return max(0.0, self.stats.defense + self.bonus_defense)
 
-    def take_damage(self, amount: float, logger: BattleLogger, source: str) -> None:
+    def take_damage(
+        self,
+        amount: float,
+        logger: BattleLogger,
+        source: str,
+        *,
+        ignore_shield: bool = False,
+    ) -> None:
         """承受伤害并打印剩余生命."""
         damage = max(0.0, amount)
         self.current_hp = max(0.0, self.current_hp - damage)

@@ -24,6 +24,8 @@ class BattleSimulator:
         """执行一场对局."""
         fighter_a.reset_for_battle()
         fighter_b.reset_for_battle()
+        fighter_a.bind_rng(self.rng)
+        fighter_b.bind_rng(self.rng)
         logger.log(f"=== 对局开始: {fighter_a.name} vs {fighter_b.name} ===")
         order = self._decide_order(fighter_a, fighter_b)
         round_count = 1
@@ -101,3 +103,41 @@ def run_single_verbose_battle(
     """输出一场带日志的对局."""
     logger = BattleLogger(enabled=True)
     simulator.simulate_once(spawn_a(), spawn_b(), logger)
+
+
+def round_robin_statistics(
+    simulator: BattleSimulator,
+    roster: Dict[str, Callable[[], BaseCharacter]],
+    iterations_per_pair: int = 10_000,
+) -> Tuple[Dict[str, float], Dict[Tuple[str, str], Dict[str, float]]]:
+    """对整套角色做循环赛统计."""
+    names = list(roster.keys())
+    if len(names) < 2:
+        raise ValueError("循环赛至少需要两名角色")
+
+    total_matches_per_character = iterations_per_pair * (len(names) - 1)
+    quiet_logger = BattleLogger(enabled=False)
+    wins: Dict[str, int] = {name: 0 for name in names}
+    matchup_rates: Dict[Tuple[str, str], Dict[str, float]] = {}
+
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            name_a = names[i]
+            name_b = names[j]
+            spawn_a = roster[name_a]
+            spawn_b = roster[name_b]
+            pair_wins = {name_a: 0, name_b: 0}
+            for _ in range(iterations_per_pair):
+                winner = simulator.simulate_once(spawn_a(), spawn_b(), quiet_logger)
+                wins[winner.name] += 1
+                pair_wins[winner.name] += 1
+            matchup_rates[(name_a, name_b)] = {
+                name_a: pair_wins[name_a] / iterations_per_pair,
+                name_b: pair_wins[name_b] / iterations_per_pair,
+            }
+
+    overall = {
+        name: wins[name] / total_matches_per_character
+        for name in names
+    }
+    return overall, matchup_rates
