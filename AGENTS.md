@@ -7,6 +7,7 @@
 
 ## 构建、运行与开发命令
 - `python3 main.py`：执行 1 万场循环赛并输出一场示例对局日志，是最基本的回归命令。
+- 在任何 uv 命令前加上 `UV_CACHE_DIR="$PWD/.uv_cache"` 再执行。
 - `uv run pyright`：在 uv 环境中运行静态类型检查，快速捕捉导入/类型错误。
 - 若需添加依赖，使用 `uv add <package>`，保持锁文件一致。
 
