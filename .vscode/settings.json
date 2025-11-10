@@ -1,0 +1,12 @@
+{
+    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        // 新语法：用 "always" 或 "explicit"
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "always",
+            "source.fixAll.ruff": "always",
+            "source.organizeImports": "always"
+        }
+    }
+}
