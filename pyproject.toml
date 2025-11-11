@@ -4,9 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "ruff>=0.14.4",
-]
+dependencies = []
 
 [tool.ruff]
 line-length = 100
@@ -20,6 +18,12 @@ fixable = ["ALL"]  # 尽可能自动修复
 
 [tool.ruff.format]
 line-ending = "auto"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.407",
+    "ruff>=0.14.4",
+]
 
 # 可在这里关掉你想交给 Pylint/团队例外的规则
 # lint.ignore = ["PLR0915"]  # 示例：函数太长
