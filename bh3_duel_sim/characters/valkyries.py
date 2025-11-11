@@ -35,9 +35,10 @@ class Korali(BaseCharacter):
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
-            logger.log(
-                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
-                f"(剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} (剩余 {remaining} 回合)",
             )
             self.take_damage(state["伤害"], logger, "状态:流血")
 
@@ -46,20 +47,28 @@ class Korali(BaseCharacter):
     def _handle_stun(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._stunned = True
-            logger.log(f"{self.name} 陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
 
     def _handle_confusion(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._confused = True
-            logger.log(f"{self.name} 陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if self._stunned:
-            logger.log(f"{self.name} 因眩晕跳过本回合的主动与普攻")
+            self.log_action(logger, "state", "因眩晕跳过本回合的主动与普攻")
             return True
         return False
 
@@ -68,17 +77,21 @@ class Korali(BaseCharacter):
             return
         if self.roll_chance(0.20):
             opponent.states["眩晕"] = {"剩余回合": 2}
-            logger.log(f"{self.name} 的被动生效, {opponent.name} 进入 2 回合眩晕")
+            logger.emit(opponent.name, "passive", f"{self.name} 的被动生效, 陷入 2 回合眩晕")
 
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
-        logger.log(f"{self.name} 释放主动技能, 进行三段斩击")
+        self.log_action(logger, "active", "释放主动技能, 进行三段斩击")
         segments = [20.0, 18.0, 18.0]
         for idx, base in enumerate(segments, start=1):
             damage = self.calculate_skill_damage(base, opponent)
             # 每段独立结算防御/护盾,避免未来遗忘该设定.
-            logger.log(f"{self.name} 主动技能第 {idx} 段预期伤害 {damage:.2f} (独立结算防御/护盾)")
+            self.log_action(
+                logger,
+                "active",
+                f"主动技能第 {idx} 段预期伤害 {damage:.2f} (独立结算防御/护盾)",
+            )
             opponent.take_damage(damage, logger, "主动技能")
             if not opponent.is_alive:
                 break
@@ -92,7 +105,7 @@ class Korali(BaseCharacter):
                 0.05 * self.effective_attack(),
                 self.effective_attack() - self.effective_defense(),
             )
-            logger.log(f"{self.name} 因混乱攻击自己, 预计伤害 {damage:.2f}")
+            self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
         super().perform_basic_attack(opponent, logger)
@@ -126,9 +139,10 @@ class Bronya(BaseCharacter):
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
-            logger.log(
-                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
-                f"(剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} (剩余 {remaining} 回合)",
             )
             self.take_damage(state["伤害"], logger, "状态:流血")
 
@@ -137,40 +151,48 @@ class Bronya(BaseCharacter):
     def _handle_stun(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._stunned = True
-            logger.log(f"{self.name} 陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
 
     def _handle_confusion(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._confused = True
-            logger.log(f"{self.name} 陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if self._stunned:
-            logger.log(f"{self.name} 因眩晕跳过本回合的主动与普攻")
+            self.log_action(logger, "state", "因眩晕跳过本回合的主动与普攻")
             return True
         return False
 
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
-        logger.log(f"{self.name} 释放主动技能, 发射五段炮火")
+        self.log_action(logger, "active", "释放主动技能, 发射五段炮火")
         for idx in range(1, 6):
             if self.roll_chance(0.15):
-                logger.log(f"第 {idx} 段触发被动, 无视防御与护盾")
+                self.log_action(logger, "passive", f"第 {idx} 段触发被动, 无视防御与护盾")
                 opponent.take_damage(15.0, logger, "主动技能", ignore_shield=True)
             else:
                 damage = self.calculate_skill_damage(15.0, opponent)
-                logger.log(f"第 {idx} 段预期伤害 {damage:.2f}")
+                self.log_action(logger, "active", f"第 {idx} 段预期伤害 {damage:.2f}")
                 opponent.take_damage(damage, logger, "主动技能")
             if not opponent.is_alive:
                 break
         if opponent.is_alive and self.roll_chance(0.25):
             opponent.states["混乱"] = {"剩余回合": 1}
-            logger.log(f"{self.name} 触发混乱, {opponent.name} 将自伤 1 回合")
+            logger.emit(opponent.name, "passive", f"{self.name} 触发混乱, 将自伤 1 回合")
         return False
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
@@ -179,7 +201,7 @@ class Bronya(BaseCharacter):
                 0.05 * self.effective_attack(),
                 self.effective_attack() - self.effective_defense(),
             )
-            logger.log(f"{self.name} 因混乱攻击自己, 预计伤害 {damage:.2f}")
+            self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
         super().perform_basic_attack(opponent, logger)
@@ -213,9 +235,10 @@ class Bianka(BaseCharacter):
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
-            logger.log(
-                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
-                f"(剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} (剩余 {remaining} 回合)",
             )
             self.take_damage(state["伤害"], logger, "状态:流血")
 
@@ -224,40 +247,56 @@ class Bianka(BaseCharacter):
     def _handle_stun(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._stunned = True
-            logger.log(f"{self.name} 陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
 
     def _handle_confusion(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._confused = True
-            logger.log(f"{self.name} 陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if self._stunned:
-            logger.log(f"{self.name} 因眩晕跳过本回合的主动与普攻")
+            self.log_action(logger, "state", "因眩晕跳过本回合的主动与普攻")
             return True
         return False
 
     def _gain_shield(self, logger: BattleLogger) -> None:
         self._shield_value += 5.0
-        logger.log(f"{self.name} 的被动生效, 获得 5 点护盾 -> 当前 {self._shield_value:.2f}")
+        self.log_action(
+            logger,
+            "passive",
+            f"的被动生效, 获得 5 点护盾 -> 当前 {self._shield_value:.2f}",
+        )
 
     def _maybe_bonus_slash(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         if not opponent.is_alive:
             return
         if self.roll_chance(0.20):
             damage = self.calculate_skill_damage(24.0, opponent)
-            logger.log(f"{self.name} 的主动追加斩击触发, 额外造成 {damage:.2f} (不计入被动)")
+            self.log_action(
+                logger,
+                "active",
+                f"的主动追加斩击触发, 额外造成 {damage:.2f} (不计入被动)",
+            )
             opponent.take_damage(damage, logger, "主动技能追加")
 
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
         damage = self.calculate_skill_damage(16.0, opponent)
-        logger.log(f"{self.name} 以主动替换普攻, 造成 {damage:.2f} 伤害")
+        self.log_action(logger, "active", f"以主动替换普攻, 造成 {damage:.2f} 伤害")
         opponent.take_damage(damage, logger, "主动技能")
         self._gain_shield(logger)
         self._maybe_bonus_slash(opponent, logger)
@@ -274,8 +313,10 @@ class Bianka(BaseCharacter):
         if not ignore_shield and self._shield_value > 0 and amount > 0:
             absorbed = min(amount, self._shield_value)
             self._shield_value -= absorbed
-            logger.log(
-                f"{self.name} 的护盾吸收 {absorbed:.2f} 点伤害 -> 剩余护盾 {self._shield_value:.2f}"
+            self.log_action(
+                logger,
+                "state",
+                f"的护盾吸收 {absorbed:.2f} 点伤害 -> 剩余护盾 {self._shield_value:.2f}",
             )
             amount -= absorbed
         if amount <= 0:
@@ -288,7 +329,7 @@ class Bianka(BaseCharacter):
                 0.05 * self.effective_attack(),
                 self.effective_attack() - self.effective_defense(),
             )
-            logger.log(f"{self.name} 因混乱攻击自己, 预计伤害 {damage:.2f}")
+            self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             self._gain_shield(logger)
             return
@@ -322,9 +363,10 @@ class Kiana(BaseCharacter):
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
-            logger.log(
-                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
-                f"(剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} (剩余 {remaining} 回合)",
             )
             self.take_damage(state["伤害"], logger, "状态:流血")
 
@@ -333,20 +375,28 @@ class Kiana(BaseCharacter):
     def _handle_stun(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._stunned = True
-            logger.log(f"{self.name} 陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入眩晕, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
 
     def _handle_confusion(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._confused = True
-            logger.log(f"{self.name} 陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)")
+            self.log_action(
+                logger,
+                "state",
+                f"陷入混乱, 普攻会转而攻击自己 (剩余 {remaining} 回合)",
+            )
 
         self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if self._stunned:
-            logger.log(f"{self.name} 因眩晕跳过本回合的主动与普攻")
+            self.log_action(logger, "state", "因眩晕跳过本回合的主动与普攻")
             return True
         return False
 
@@ -355,11 +405,11 @@ class Kiana(BaseCharacter):
             return False
         if opponent.is_alive:
             bonus = max(1.0, opponent.current_hp * 0.15)
-            logger.log(f"{self.name} 被动发动, 先造成 {bonus:.2f} 点真实伤害")
+            self.log_action(logger, "passive", f"被动发动, 先造成 {bonus:.2f} 点真实伤害")
             opponent.take_damage(bonus, logger, "被动:超限打击", ignore_shield=True)
         if opponent.is_alive:
             damage = self.calculate_skill_damage(20.0, opponent)
-            logger.log(f"{self.name} 主动追加 20 点伤害, 预期 {damage:.2f}")
+            self.log_action(logger, "active", f"主动追加 20 点伤害, 预期 {damage:.2f}")
             opponent.take_damage(damage, logger, "主动技能")
         return False
 
@@ -369,7 +419,7 @@ class Kiana(BaseCharacter):
                 0.05 * self.effective_attack(),
                 self.effective_attack() - self.effective_defense(),
             )
-            logger.log(f"{self.name} 因混乱攻击自己, 预计伤害 {damage:.2f}")
+            self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
         super().perform_basic_attack(opponent, logger)

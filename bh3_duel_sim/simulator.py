@@ -12,7 +12,7 @@ from bh3_duel_sim.logger import BattleLogger
 class BattleSimulator:
     """战斗驱动器."""
 
-    def __init__(self, seed: int = 2024) -> None:
+    def __init__(self, seed: int | None = None) -> None:
         self.rng = random.Random(seed)
 
     def simulate_once(
@@ -26,18 +26,19 @@ class BattleSimulator:
         fighter_b.reset_for_battle()
         fighter_a.bind_rng(self.rng)
         fighter_b.bind_rng(self.rng)
-        logger.log(f"=== 对局开始: {fighter_a.name} vs {fighter_b.name} ===")
+        logger.configure_actors([fighter_a.name, fighter_b.name])
+        logger.log_system(f"=== 对局开始: {fighter_a.name} vs {fighter_b.name} ===")
         order = self._decide_order(fighter_a, fighter_b)
         round_count = 1
         while fighter_a.is_alive and fighter_b.is_alive:
-            logger.log(f"-- 第 {round_count} 回合 --")
+            logger.log_system(f"-- 第 {round_count} 回合 --")
             for actor, target in order:
                 if not (actor.is_alive and target.is_alive):
                     break
                 self._exec_turn(actor, target, logger)
             round_count += 1
         winner = fighter_a if fighter_a.is_alive else fighter_b
-        logger.log(f"=== 胜者: {winner.name} ===")
+        logger.log_system(f"=== 胜者: {winner.name} ===")
         return winner
 
     def _decide_order(
@@ -52,9 +53,7 @@ class BattleSimulator:
             return [(fighter_a, fighter_b), (fighter_b, fighter_a)]
         return [(fighter_b, fighter_a), (fighter_a, fighter_b)]
 
-    def _exec_turn(
-        self, actor: BaseCharacter, target: BaseCharacter, logger: BattleLogger
-    ) -> None:
+    def _exec_turn(self, actor: BaseCharacter, target: BaseCharacter, logger: BattleLogger) -> None:
         """执行单个角色的行动阶段."""
         actor.apply_state_effects(target, logger)
         if not actor.is_alive:
@@ -136,10 +135,9 @@ def round_robin_statistics(
                 name_b: pair_wins[name_b] / iterations_per_pair,
             }
 
-    overall = {
-        name: wins[name] / total_matches_per_character
-        for name in names
-    }
+    overall = {name: wins[name] / total_matches_per_character for name in names}
     return overall, matchup_rates
+
+
 MIN_ROSTER_SIZE = 2
 SAME_SPEED_THRESHOLD = 0.5

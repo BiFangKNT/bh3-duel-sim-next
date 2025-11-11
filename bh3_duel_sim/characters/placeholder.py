@@ -43,9 +43,10 @@ class PlaceholderCombatant(BaseCharacter):
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
-            logger.log(
-                f"{self.name} 受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} "
-                f"(剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:流血 影响, 持续伤害 {state['伤害']:.2f} (剩余 {remaining} 回合)",
             )
             self.take_damage(state["伤害"], logger, "状态:流血")
 
@@ -54,8 +55,10 @@ class PlaceholderCombatant(BaseCharacter):
     def _handle_stun(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._stunned = True
-            logger.log(
-                f"{self.name} 受到状态:眩晕 影响, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)"
+            self.log_action(
+                logger,
+                "state",
+                f"受到状态:眩晕 影响, 本回合无法发动主动或普攻 (剩余 {remaining} 回合)",
             )
 
         self.process_state("眩晕", logger, effect, end_message=f"{self.name} 的眩晕状态结束")
@@ -63,17 +66,17 @@ class PlaceholderCombatant(BaseCharacter):
     def _handle_confusion(self, logger: BattleLogger) -> None:
         def effect(_: dict[str, float], remaining: int) -> None:
             self._confused = True
-            logger.log(f"{self.name} 陷入混乱, 普攻会伤害自己 (剩余 {remaining} 回合)")
+            self.log_action(logger, "state", f"陷入混乱, 普攻会伤害自己 (剩余 {remaining} 回合)")
 
         self.process_state("混乱", logger, effect, end_message=f"{self.name} 的混乱状态结束")
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         """被动技能: 每回合为自己回复固定比例生命."""
         heal_value = self.stats.max_hp * self.passive_heal_ratio
-        logger.log(f"{self.name} 触发被动技能, 回复 {heal_value:.2f}")
+        self.log_action(logger, "passive", f"触发被动技能, 回复 {heal_value:.2f}")
         self.heal(heal_value, logger, "被动技能")
         if self._stunned:
-            logger.log(f"{self.name} 因眩晕无法发动主动或普攻")
+            self.log_action(logger, "state", "因眩晕无法发动主动或普攻")
             return True
         return False
 
@@ -82,7 +85,7 @@ class PlaceholderCombatant(BaseCharacter):
         if not self.consume_active_charge():
             return False
         damage = self.calculate_skill_damage(self.effective_attack() * 1.5, opponent)
-        logger.log(f"{self.name} 释放主动技能, 造成 {damage:.2f} 并附加流血")
+        self.log_action(logger, "active", f"释放主动技能, 造成 {damage:.2f} 并附加流血")
         opponent.take_damage(damage, logger, "主动技能")
         opponent.states["流血"] = {"伤害": self.bleed_damage, "剩余回合": 2}
         return True
@@ -94,7 +97,7 @@ class PlaceholderCombatant(BaseCharacter):
                 0.05 * self.effective_attack(),
                 self.effective_attack() - self.effective_defense(),
             )
-            logger.log(f"{self.name} 因混乱误伤自己, 预计伤害 {damage:.2f}")
+            self.log_action(logger, "state", f"因混乱误伤自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
         super().perform_basic_attack(opponent, logger)

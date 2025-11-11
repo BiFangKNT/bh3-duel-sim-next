@@ -83,7 +83,7 @@ class BaseCharacter:
         remaining -= 1
         if remaining <= 0:
             if end_message:
-                logger.log(end_message)
+                logger.emit(self.name, "state", end_message)
             del self.states[state_name]
         else:
             state["剩余回合"] = remaining
@@ -96,6 +96,10 @@ class BaseCharacter:
         self.bonus_defense = 0.0
         if self._active_cooldown is not None:
             self._active_counter = self._active_cooldown
+
+    def log_action(self, logger: BattleLogger, category: str, message: str) -> None:
+        """以角色身份输出日志."""
+        logger.emit(self.name, category, message)
 
     @property
     def is_alive(self) -> bool:
@@ -119,23 +123,29 @@ class BaseCharacter:
         ignore_shield: bool = False,
     ) -> None:
         """承受伤害并打印剩余生命."""
-        # 当前未实现护盾机制, 为保持向后兼容保留参数并显式标记为未使用
-        del ignore_shield
-
         damage = max(0.0, amount)
         self.current_hp = max(0.0, self.current_hp - damage)
-        logger.log(
-            f"{self.name} 受到{source} {damage:.2f} 点伤害 -> "
-            f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+        category = logger.classify_source(source)
+        logger.emit(
+            self.name,
+            category,
+            (
+                f"受到{source} {damage:.2f} 点伤害 -> "
+                f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+            ),
         )
 
     def heal(self, amount: float, logger: BattleLogger, source: str) -> None:
         """获得治疗并打印剩余生命."""
         heal_value = max(0.0, amount)
         self.current_hp = min(self.stats.max_hp, self.current_hp + heal_value)
-        logger.log(
-            f"{self.name} 获得{source} {heal_value:.2f} 点治疗 -> "
-            f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+        logger.emit(
+            self.name,
+            "heal",
+            (
+                f"获得{source} {heal_value:.2f} 点治疗 -> "
+                f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+            ),
         )
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
@@ -143,7 +153,7 @@ class BaseCharacter:
         raw = max(
             0.05 * self.effective_attack(), self.effective_attack() - opponent.effective_defense()
         )
-        logger.log(f"{self.name} 进行普攻, 预期伤害 {raw:.2f}")
+        self.log_action(logger, "basic", f"进行普攻, 预期伤害 {raw:.2f}")
         opponent.take_damage(raw, logger, "普攻")
 
     def apply_state_effects(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
