@@ -29,4 +29,4 @@ __all__ = [
     "run_single_verbose_battle",
     "CombatStats",
 ]
-__all__.extend(name for name in _CHARACTERS_EXPORTS if name not in __all__)
+__all__.extend(name for name in _CHARACTERS_EXPORTS if name not in __all__)  # pyright: ignore[reportUnsupportedDunderAll]

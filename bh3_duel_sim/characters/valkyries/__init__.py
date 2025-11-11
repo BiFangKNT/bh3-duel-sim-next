@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
-from typing import Callable
+from typing import Callable, cast
 
 from ..base import BaseCharacter
 
@@ -24,13 +24,14 @@ for module_info in pkgutil.iter_modules(__path__):
 for class_name, class_obj in _VALKYRIE_CLASSES.items():
     globals()[class_name] = class_obj
 
-__all__ = list(_VALKYRIE_CLASSES.keys()) + ["build_valkyrie_roster"]
+__all__ = list(_VALKYRIE_CLASSES.keys()) + ["build_valkyrie_roster"]  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 def build_valkyrie_roster() -> dict[str, Callable[[], BaseCharacter]]:
     """提供默认女武神角色工厂."""
     roster: dict[str, Callable[[], BaseCharacter]] = {}
     for cls in _VALKYRIE_CLASSES.values():
-        instance = cls()
-        roster[instance.name] = cls
+        factory = cast("Callable[[], BaseCharacter]", cls)
+        instance = factory()
+        roster[instance.name] = factory
     return roster

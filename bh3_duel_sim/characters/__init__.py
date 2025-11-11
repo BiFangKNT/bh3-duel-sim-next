@@ -12,4 +12,4 @@ __all__ = [
     "build_placeholder_fighters",
     "build_valkyrie_roster",
 ]
-__all__.extend(_VALKYRIE_EXPORTS)
+__all__.extend(_VALKYRIE_EXPORTS)  # pyright: ignore[reportUnsupportedDunderAll]
