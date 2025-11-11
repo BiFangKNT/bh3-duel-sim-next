@@ -40,6 +40,7 @@ class PlaceholderCombatant(BaseCharacter):
         self._handle_bleed(logger)
         self._handle_stun(logger)
         self._handle_confusion(logger)
+        self._handle_defense_break(logger)
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
@@ -72,7 +73,7 @@ class PlaceholderCombatant(BaseCharacter):
 
     def trigger_passive(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         """被动技能: 每回合为自己回复固定比例生命."""
-        heal_value = self.stats.max_hp * self.passive_heal_ratio
+        heal_value = self.max_hp * self.passive_heal_ratio
         self.log_action(logger, "passive", f"触发被动技能, 回复 {heal_value:.2f}")
         self.heal(heal_value, logger, "被动技能")
         if self._stunned:
@@ -86,7 +87,7 @@ class PlaceholderCombatant(BaseCharacter):
             return False
         damage = self.calculate_skill_damage(self.effective_attack() * 1.5, opponent)
         self.log_action(logger, "active", f"释放主动技能, 造成 {damage:.2f} 并附加流血")
-        opponent.take_damage(damage, logger, "主动技能")
+        opponent.take_damage(damage, logger, "主动技能", attacker=self)
         opponent.states["流血"] = {"伤害": self.bleed_damage, "剩余回合": 2}
         return True
 

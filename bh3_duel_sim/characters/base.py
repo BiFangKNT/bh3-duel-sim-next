@@ -15,7 +15,8 @@ class BaseCharacter:
     def __init__(self, name: str, stats: CombatStats) -> None:
         self.name = name
         self.stats = stats
-        self.current_hp = stats.max_hp
+        self._max_hp_override: float | None = None
+        self.current_hp = self.max_hp
         self.states: dict[str, dict[str, float]] = {}
         self.bonus_attack = 0.0
         self.bonus_defense = 0.0
@@ -88,9 +89,28 @@ class BaseCharacter:
         else:
             state["剩余回合"] = remaining
 
+    def _handle_defense_break(self, logger: BattleLogger) -> None:
+        def effect(state: dict[str, float], remaining: int) -> None:
+            reduction = state.get("减防", 0.0)
+            self.log_action(
+                logger,
+                "state",
+                f"处于降防状态, 防御降低 {reduction:.2f} (剩余 {remaining} 回合)",
+            )
+
+        self.process_state("降防", logger, effect, end_message=f"{self.name} 的降防状态结束")
+
+    @property
+    def max_hp(self) -> float:
+        return self._max_hp_override or self.stats.max_hp
+
+    def set_max_hp_override(self, value: float | None) -> None:
+        self._max_hp_override = value
+
     def reset_for_battle(self) -> None:
         """恢复满血并清空状态."""
-        self.current_hp = self.stats.max_hp
+        self.set_max_hp_override(None)
+        self.current_hp = self.max_hp
         self.states.clear()
         self.bonus_attack = 0.0
         self.bonus_defense = 0.0
@@ -110,9 +130,16 @@ class BaseCharacter:
         """计算当前攻击力."""
         return max(0.0, self.stats.attack + self.bonus_attack)
 
+    def _defense_penalty_total(self) -> float:
+        penalty = 0.0
+        for state in self.states.values():
+            penalty += state.get("减防", 0.0)
+        return penalty
+
     def effective_defense(self) -> float:
         """计算当前防御力."""
-        return max(0.0, self.stats.defense + self.bonus_defense)
+        base_defense = self.stats.defense + self.bonus_defense
+        return max(0.0, base_defense - self._defense_penalty_total())
 
     def take_damage(
         self,
@@ -121,6 +148,7 @@ class BaseCharacter:
         source: str,
         *,
         ignore_shield: bool = False,
+        attacker: BaseCharacter | None = None,
     ) -> None:
         """承受伤害并打印剩余生命."""
         damage = max(0.0, amount)
@@ -131,20 +159,20 @@ class BaseCharacter:
             category,
             (
                 f"受到{source} {damage:.2f} 点伤害 -> "
-                f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+                f"生命 {self.current_hp:.2f}/{self.max_hp:.2f}"
             ),
         )
 
     def heal(self, amount: float, logger: BattleLogger, source: str) -> None:
         """获得治疗并打印剩余生命."""
         heal_value = max(0.0, amount)
-        self.current_hp = min(self.stats.max_hp, self.current_hp + heal_value)
+        self.current_hp = min(self.max_hp, self.current_hp + heal_value)
         logger.emit(
             self.name,
             "heal",
             (
-                f"获得{source} {heal_value:.2f} 点治疗 -> "
-                f"生命 {self.current_hp:.2f}/{self.stats.max_hp:.2f}"
+                f"获得{source} {heal_value:.2f} 点治疗 -> 生命 "
+                f"{self.current_hp:.2f}/{self.max_hp:.2f}"
             ),
         )
 
@@ -154,7 +182,7 @@ class BaseCharacter:
             0.05 * self.effective_attack(), self.effective_attack() - opponent.effective_defense()
         )
         self.log_action(logger, "basic", f"进行普攻, 预期伤害 {raw:.2f}")
-        opponent.take_damage(raw, logger, "普攻")
+        opponent.take_damage(raw, logger, "普攻", attacker=self)
 
     def apply_state_effects(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         """状态阶段,需要由子类实现."""

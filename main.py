@@ -19,10 +19,8 @@ def main() -> None:
     roster = {
         name: roster[name]
         for name in [
-            # "科拉莉",
-            # "布洛妮娅",
-            "比安卡",
-            "琪亚娜",
+            "晨雪",
+            "丽塔",
         ]
     }
     overall, matchup = round_robin_statistics(simulator, roster, iterations_per_pair=10_000)
