@@ -74,6 +74,8 @@ class Bianka(BaseCharacter):
         return False
 
     def _gain_shield(self, logger: BattleLogger) -> None:
+        if self.is_passive_blocked():
+            return
         self._shield_value += 5.0
         self.log_action(
             logger,

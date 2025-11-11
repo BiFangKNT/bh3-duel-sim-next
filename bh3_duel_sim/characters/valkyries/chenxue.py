@@ -32,7 +32,7 @@ class Chenxue(BaseCharacter):
         self._prebuff_logged = False
 
     def apply_state_effects(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
-        if not self._prebuff_logged:
+        if not self._prebuff_logged and not self.is_passive_blocked():
             self.log_action(logger, "passive", "被动触发: 生命上限+50%, 防御-15%")
             self._prebuff_logged = True
         self._stunned = False
@@ -41,7 +41,7 @@ class Chenxue(BaseCharacter):
         self._handle_stun(logger)
         self._handle_confusion(logger)
         self._handle_defense_break(logger)
-        if self.current_hp < self.LOW_HP_THRESHOLD:
+        if self.current_hp < self.LOW_HP_THRESHOLD and not self.is_passive_blocked():
             self.log_action(logger, "passive", "触发低血回复, 恢复 5 点生命")
             self.heal(self.LOW_HP_HEAL, logger, "被动技能")
 

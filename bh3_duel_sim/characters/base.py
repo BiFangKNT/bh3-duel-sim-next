@@ -159,6 +159,18 @@ class BaseCharacter:
             state["剩余回合"] = remaining
         return True
 
+    def resolve_passive_phase(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
+        """统筹被动阶段, 返回 True 表示已经消耗行动."""
+        if self.handle_passive_block(logger):
+            return False
+        return self.trigger_passive(opponent, logger)
+
+    def resolve_active_phase(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
+        """统筹主动阶段, 返回 True 表示技能已经释放."""
+        if self.handle_active_lock(logger):
+            return False
+        return self.use_active_skill(opponent, logger)
+
     @property
     def max_hp(self) -> float:
         return self._max_hp_override or self.stats.max_hp

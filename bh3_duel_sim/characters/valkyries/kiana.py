@@ -74,7 +74,7 @@ class Kiana(BaseCharacter):
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
-        if opponent.is_alive:
+        if opponent.is_alive and not self.is_passive_blocked():
             bonus = max(1.0, opponent.current_hp * 0.15)
             self.log_action(logger, "passive", f"被动发动, 先造成 {bonus:.2f} 点真实伤害")
             opponent.take_damage(bonus, logger, "被动:超限打击", ignore_shield=True, attacker=self)

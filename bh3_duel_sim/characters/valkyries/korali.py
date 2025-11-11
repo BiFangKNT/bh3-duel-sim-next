@@ -72,6 +72,8 @@ class Korali(BaseCharacter):
         return False
 
     def _try_apply_stun(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
+        if self.is_passive_blocked():
+            return
         if not opponent.is_alive:
             return
         if self.roll_chance(0.20):

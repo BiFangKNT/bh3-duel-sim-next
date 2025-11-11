@@ -46,6 +46,8 @@ class Theresa(BaseCharacter):
         state = self.states.get(state_name)
         if not state:
             return
+        if self.is_passive_blocked():
+            return
         if state.get(self.PASSIVE_MARK_KEY):
             return
         state[self.PASSIVE_MARK_KEY] = 1.0
@@ -132,6 +134,8 @@ class Theresa(BaseCharacter):
     def _try_disable_opponent_passive(
         self, opponent: BaseCharacter, logger: BattleLogger, source: str
     ) -> None:
+        if self.is_passive_blocked():
+            return
         if not opponent.is_alive:
             return
         if not self.roll_chance(0.25):

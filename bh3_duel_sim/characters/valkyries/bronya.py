@@ -76,7 +76,7 @@ class Bronya(BaseCharacter):
             return False
         self.log_action(logger, "active", "释放主动技能, 发射五段炮火")
         for idx in range(1, 6):
-            if self.roll_chance(0.15):
+            if not self.is_passive_blocked() and self.roll_chance(0.15):
                 self.log_action(logger, "passive", f"第 {idx} 段触发被动, 无视防御与护盾")
                 opponent.take_damage(15.0, logger, "主动技能", ignore_shield=True, attacker=self)
             else:
@@ -85,7 +85,7 @@ class Bronya(BaseCharacter):
                 opponent.take_damage(damage, logger, "主动技能", attacker=self)
             if not opponent.is_alive:
                 break
-        if opponent.is_alive and self.roll_chance(0.25):
+        if opponent.is_alive and not self.is_passive_blocked() and self.roll_chance(0.25):
             opponent.apply_state("混乱", {"剩余回合": 1}, logger)
             logger.emit(opponent.name, "passive", f"{self.name} 触发混乱, 将自伤 1 回合")
         return False
