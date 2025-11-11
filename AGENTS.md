@@ -1,9 +1,12 @@
 # Repository Guidelines
 
 ## 项目结构与模块划分
-- `main.py`：项目入口，组装角色名单并调用循环赛/日志输出。
-- `bh3_duel_sim/`：核心包，含 `characters/`（基类与女武神实现）、`simulator.py`（回合驱动与统计）、`stats.py`（属性定义）、`logger.py`（日志器）。
-- `pyproject.toml` 与 `uv.lock`：由 uv 管理的依赖与环境描述文件；新增模块、工具时务必同步更新。
+- `main.py`：项目入口，组装角色名单并调用循环赛/彩色日志输出。
+- `bh3_duel_sim/`：核心包。
+  - `characters/`：`base.py` 提供通用战斗逻辑；`placeholder.py` 是占位角色；`valkyries/` 子包下每名角色独立文件（如 `korali.py`、`chenxue.py` 等），`__init__.py` 聚合成工厂。
+  - `simulator.py`：回合驱动、循环赛统计。
+  - `logger.py`：带颜色与类别的日志器。
+- `pyproject.toml`、`uv.lock`：uv 环境与依赖锁。
 
 ## 构建、运行与开发命令
 - `python3 main.py`：执行 1 万场循环赛并输出一场示例对局日志，是最基本的回归命令。

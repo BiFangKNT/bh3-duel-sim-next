@@ -5,8 +5,10 @@ from .characters.placeholder import PlaceholderCombatant, build_placeholder_figh
 from .characters.valkyries import (
     Bianka,
     Bronya,
+    Chenxue,
     Kiana,
     Korali,
+    Lita,
     build_valkyrie_roster,
 )
 from .logger import BattleLogger
@@ -26,6 +28,8 @@ __all__ = [
     "Bronya",
     "Bianka",
     "Kiana",
+    "Chenxue",
+    "Lita",
     "build_valkyrie_roster",
     "BattleLogger",
     "BattleSimulator",
