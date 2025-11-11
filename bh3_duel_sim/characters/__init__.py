@@ -2,25 +2,14 @@
 
 from .base import BaseCharacter
 from .placeholder import PlaceholderCombatant, build_placeholder_fighters
-from .valkyries import (
-    Bianka,
-    Bronya,
-    Chenxue,
-    Kiana,
-    Korali,
-    Lita,
-    build_valkyrie_roster,
-)
+from .valkyries import *  # noqa: F401,F403
+from .valkyries import __all__ as _VALKYRIE_EXPORTS
+from .valkyries import build_valkyrie_roster
 
 __all__ = [
     "BaseCharacter",
     "PlaceholderCombatant",
     "build_placeholder_fighters",
-    "Korali",
-    "Bronya",
-    "Bianka",
-    "Kiana",
-    "Chenxue",
-    "Lita",
     "build_valkyrie_roster",
 ]
+__all__.extend(_VALKYRIE_EXPORTS)

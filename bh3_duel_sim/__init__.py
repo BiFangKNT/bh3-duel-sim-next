@@ -1,16 +1,13 @@
 """对战模拟核心包."""
 
-from .characters.base import BaseCharacter
-from .characters.placeholder import PlaceholderCombatant, build_placeholder_fighters
-from .characters.valkyries import (
-    Bianka,
-    Bronya,
-    Chenxue,
-    Kiana,
-    Korali,
-    Lita,
+from .characters import *  # noqa: F401,F403
+from .characters import (
+    BaseCharacter,
+    PlaceholderCombatant,
+    build_placeholder_fighters,
     build_valkyrie_roster,
 )
+from .characters import __all__ as _CHARACTERS_EXPORTS
 from .logger import BattleLogger
 from .simulator import (
     BattleSimulator,
@@ -24,12 +21,6 @@ __all__ = [
     "BaseCharacter",
     "PlaceholderCombatant",
     "build_placeholder_fighters",
-    "Korali",
-    "Bronya",
-    "Bianka",
-    "Kiana",
-    "Chenxue",
-    "Lita",
     "build_valkyrie_roster",
     "BattleLogger",
     "BattleSimulator",
@@ -38,3 +29,4 @@ __all__ = [
     "run_single_verbose_battle",
     "CombatStats",
 ]
+__all__.extend(name for name in _CHARACTERS_EXPORTS if name not in __all__)

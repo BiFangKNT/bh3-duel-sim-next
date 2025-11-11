@@ -2,35 +2,35 @@
 
 from __future__ import annotations
 
+import importlib
+import inspect
+import pkgutil
 from typing import Callable
 
 from ..base import BaseCharacter
-from .bianka import Bianka
-from .bronya import Bronya
-from .chenxue import Chenxue
-from .kiana import Kiana
-from .korali import Korali
-from .lita import Lita
+
+_VALKYRIE_CLASSES: dict[str, type[BaseCharacter]] = {}
+
+for module_info in pkgutil.iter_modules(__path__):
+    module = importlib.import_module(f"{__name__}.{module_info.name}")
+    for attr_name, attr in inspect.getmembers(module, inspect.isclass):
+        if (
+            issubclass(attr, BaseCharacter)
+            and attr is not BaseCharacter
+            and attr.__module__ == module.__name__
+        ):
+            _VALKYRIE_CLASSES[attr_name] = attr
+
+for class_name, class_obj in _VALKYRIE_CLASSES.items():
+    globals()[class_name] = class_obj
+
+__all__ = list(_VALKYRIE_CLASSES.keys()) + ["build_valkyrie_roster"]
 
 
 def build_valkyrie_roster() -> dict[str, Callable[[], BaseCharacter]]:
     """提供默认女武神角色工厂."""
-    return {
-        "科拉莉": Korali,
-        "布洛妮娅": Bronya,
-        "比安卡": Bianka,
-        "琪亚娜": Kiana,
-        "晨雪": Chenxue,
-        "丽塔": Lita,
-    }
-
-
-__all__ = [
-    "Korali",
-    "Bronya",
-    "Bianka",
-    "Kiana",
-    "Chenxue",
-    "Lita",
-    "build_valkyrie_roster",
-]
+    roster: dict[str, Callable[[], BaseCharacter]] = {}
+    for cls in _VALKYRIE_CLASSES.values():
+        instance = cls()
+        roster[instance.name] = cls
+    return roster
