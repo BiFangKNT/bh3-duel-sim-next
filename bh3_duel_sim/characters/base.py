@@ -8,6 +8,11 @@ from typing import Callable
 from bh3_duel_sim.logger import BattleLogger
 from bh3_duel_sim.stats import CombatStats
 
+# 属性降低状态集合
+ATTRIBUTE_DEBUFF_STATES: frozenset[str] = frozenset({"减防"})
+# 控制类状态集合
+CONTROL_STATES: frozenset[str] = frozenset({"眩晕", "混乱", "魅惑"})
+
 
 class BaseCharacter:
     """角色基类,仅保留通用的数值和基础日志."""
@@ -95,10 +100,64 @@ class BaseCharacter:
             self.log_action(
                 logger,
                 "state",
-                f"处于降防状态, 防御降低 {reduction:.2f} (剩余 {remaining} 回合)",
+                f"处于减防状态, 防御降低 {reduction:.2f} (剩余 {remaining} 回合)",
             )
 
-        self.process_state("降防", logger, effect, end_message=f"{self.name} 的降防状态结束")
+        self.process_state("减防", logger, effect, end_message=f"{self.name} 的减防状态结束")
+
+    def handle_passive_block(self, logger: BattleLogger) -> bool:
+        """若处于被动封锁状态则跳过本回合的被动阶段."""
+        state = self.states.get("被动封锁")
+        if not state:
+            return False
+        # 进入新一回合前清理上回合的锁定标记.
+        state["锁定中"] = 0.0
+        remaining = int(state.get("剩余回合", 0))
+        if remaining <= 0:
+            logger.emit(self.name, "state", f"{self.name} 的被动封锁状态结束")
+            del self.states["被动封锁"]
+            return False
+        state["锁定中"] = 1.0
+        logger.emit(
+            self.name,
+            "state",
+            f"被动被封锁, 本回合无法触发 (剩余 {remaining} 回合)",
+        )
+        remaining -= 1
+        state["剩余回合"] = remaining
+        return True
+
+    def is_passive_blocked(self) -> bool:
+        """检查被动是否被封锁(不递减回合)."""
+        state = self.states.get("被动封锁")
+        if not state:
+            return False
+        if state.get("锁定中", 0.0) > 0:
+            return True
+        remaining = int(state.get("剩余回合", 0))
+        return remaining > 0
+
+    def handle_active_lock(self, logger: BattleLogger) -> bool:
+        """若处于魅惑等抑制状态则跳过本回合的主动阶段."""
+        state = self.states.get("魅惑")
+        if not state:
+            return False
+        remaining = int(state.get("剩余回合", 0))
+        if remaining <= 0:
+            del self.states["魅惑"]
+            return False
+        logger.emit(
+            self.name,
+            "state",
+            f"陷入魅惑, 无法释放主动技能 (剩余 {remaining} 回合)",
+        )
+        remaining -= 1
+        if remaining <= 0:
+            logger.emit(self.name, "state", f"{self.name} 的魅惑状态结束")
+            del self.states["魅惑"]
+        else:
+            state["剩余回合"] = remaining
+        return True
 
     @property
     def max_hp(self) -> float:
@@ -120,6 +179,15 @@ class BaseCharacter:
     def log_action(self, logger: BattleLogger, category: str, message: str) -> None:
         """以角色身份输出日志."""
         logger.emit(self.name, category, message)
+
+    def apply_state(self, state_name: str, values: dict[str, float], logger: BattleLogger) -> None:
+        """施加或刷新状态并触发回调."""
+        self.states[state_name] = values
+        self.on_state_inflicted(state_name, logger)
+
+    def on_state_inflicted(self, state_name: str, logger: BattleLogger) -> None:
+        """状态施加瞬间回调, 默认不处理."""
+        return
 
     @property
     def is_alive(self) -> bool:
@@ -157,10 +225,7 @@ class BaseCharacter:
         logger.emit(
             self.name,
             category,
-            (
-                f"受到{source} {damage:.2f} 点伤害 -> "
-                f"生命 {self.current_hp:.2f}/{self.max_hp:.2f}"
-            ),
+            (f"受到{source} {damage:.2f} 点伤害 -> 生命 {self.current_hp:.2f}/{self.max_hp:.2f}"),
         )
 
     def heal(self, amount: float, logger: BattleLogger, source: str) -> None:

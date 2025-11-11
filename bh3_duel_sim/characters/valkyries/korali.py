@@ -75,7 +75,7 @@ class Korali(BaseCharacter):
         if not opponent.is_alive:
             return
         if self.roll_chance(0.20):
-            opponent.states["眩晕"] = {"剩余回合": 2}
+            opponent.apply_state("眩晕", {"剩余回合": 2}, logger)
             logger.emit(opponent.name, "passive", f"{self.name} 的被动生效, 陷入 2 回合眩晕")
 
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:

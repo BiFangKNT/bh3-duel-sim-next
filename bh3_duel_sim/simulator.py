@@ -61,13 +61,17 @@ class BattleSimulator:
         if not target.is_alive:
             return
 
-        passive_consumed_action = actor.trigger_passive(target, logger)
+        if actor.handle_passive_block(logger):
+            passive_consumed_action = False
+        else:
+            passive_consumed_action = actor.trigger_passive(target, logger)
         if not actor.is_alive or not target.is_alive:
             return
         if passive_consumed_action:
             return
 
-        if actor.use_active_skill(target, logger):
+        active_locked = actor.handle_active_lock(logger)
+        if not active_locked and actor.use_active_skill(target, logger):
             return
 
         actor.perform_basic_attack(target, logger)

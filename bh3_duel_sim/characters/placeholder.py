@@ -88,7 +88,7 @@ class PlaceholderCombatant(BaseCharacter):
         damage = self.calculate_skill_damage(self.effective_attack() * 1.5, opponent)
         self.log_action(logger, "active", f"释放主动技能, 造成 {damage:.2f} 并附加流血")
         opponent.take_damage(damage, logger, "主动技能", attacker=self)
-        opponent.states["流血"] = {"伤害": self.bleed_damage, "剩余回合": 2}
+        opponent.apply_state("流血", {"伤害": self.bleed_damage, "剩余回合": 2}, logger)
         return True
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:

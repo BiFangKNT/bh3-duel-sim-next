@@ -7,29 +7,45 @@ from ...stats import CombatStats
 from ..base import BaseCharacter
 
 
-class Lita(BaseCharacter):
-    """丽塔: 高速削甲并反击的刺客."""
+class Vita(BaseCharacter):
+    """薇塔: 羽翼姿态强化, 被动魅惑与自救."""
+
+    WING_ATTACK_BONUS = 7.0
+    WING_DEFENSE_BONUS = 3.0
+    CHARM_CHANCE = 0.20
+    REVIVE_CHANCE = 0.15
 
     def __init__(self) -> None:
         super().__init__(
-            name="丽塔",
-            stats=CombatStats(max_hp=100.0, attack=22.0, defense=9.0, speed=25.0),
+            name="薇塔",
+            stats=CombatStats(max_hp=100.0, attack=20.0, defense=8.0, speed=25.0),
         )
-        self.configure_active_cooldown(2)
+        self.configure_active_cooldown(3)
         self._stunned = False
         self._confused = False
+        self._wing_form_turns = 0
 
     def reset_for_battle(self) -> None:
         super().reset_for_battle()
         self._stunned = False
         self._confused = False
+        self._wing_form_turns = 0
 
     def apply_state_effects(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         self._stunned = False
         self._confused = False
+        self._decay_wing_form(logger)
         self._handle_bleed(logger)
         self._handle_stun(logger)
         self._handle_confusion(logger)
+        self._handle_defense_break(logger)
+
+    def _decay_wing_form(self, logger: BattleLogger) -> None:
+        if self._wing_form_turns <= 0:
+            return
+        self._wing_form_turns -= 1
+        if self._wing_form_turns == 0:
+            self.log_action(logger, "state", "全知的羽翼状态结束")
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
@@ -73,14 +89,9 @@ class Lita(BaseCharacter):
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
-        damage = self.calculate_skill_damage(15.0, opponent)
-        self.log_action(logger, "active", f"发动削甲迅袭, 造成 {damage:.2f} 并降低对方防御")
-        opponent.take_damage(damage, logger, "主动技能", attacker=self)
-        current = opponent.states.get("减防", {"剩余回合": 0, "减防": 0.0})
-        current["剩余回合"] = 2
-        current["减防"] = current.get("减防", 0.0) + 3.0
-        opponent.apply_state("减防", current, logger)
-        return True
+        self._wing_form_turns = 1
+        self.log_action(logger, "active", "展开全知的羽翼, 攻击+7/防御+3 持续 1 回合")
+        return False
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         if self._confused:
@@ -93,6 +104,18 @@ class Lita(BaseCharacter):
             return
         super().perform_basic_attack(opponent, logger)
 
+    def effective_attack(self) -> float:
+        value = super().effective_attack()
+        if self._wing_form_turns > 0:
+            value += self.WING_ATTACK_BONUS
+        return value
+
+    def effective_defense(self) -> float:
+        value = super().effective_defense()
+        if self._wing_form_turns > 0:
+            value += self.WING_DEFENSE_BONUS
+        return value
+
     def take_damage(
         self,
         amount: float,
@@ -103,22 +126,35 @@ class Lita(BaseCharacter):
         attacker: BaseCharacter | None = None,
     ) -> None:
         category = logger.classify_source(source)
-        # 被动判定“主动攻击”：只要不是状态/治疗/被动来源的直接伤害(含普攻)，都视为可闪避对象.
-        is_direct_attack = category not in {"state", "heal", "passive"}
-        if is_direct_attack and attacker and self.roll_chance(0.18):
-            self.log_action(logger, "passive", "成功闪避并反击 12 点伤害")
-            attacker.take_damage(
-                12.0,
-                logger,
-                "被动:闪避反击",
-                ignore_shield=False,
-                attacker=self,
-            )
-            return
         super().take_damage(
             amount,
             logger,
             source,
             ignore_shield=ignore_shield,
             attacker=attacker,
+        )
+        if (
+            attacker
+            and attacker.is_alive
+            and category not in {"state", "heal"}
+            and not self.is_passive_blocked()
+        ):
+            self._try_apply_charm(attacker, logger)
+        if self.current_hp <= 0 and not self.is_passive_blocked():
+            self._try_revive(logger)
+
+    def _try_apply_charm(self, attacker: BaseCharacter, logger: BattleLogger) -> None:
+        if not self.roll_chance(self.CHARM_CHANCE):
+            return
+        attacker.apply_state("魅惑", {"剩余回合": 2}, logger)
+        logger.emit(attacker.name, "state", f"{self.name} 的被动发动, 陷入 2 回合魅惑")
+
+    def _try_revive(self, logger: BattleLogger) -> None:
+        if not self.roll_chance(self.REVIVE_CHANCE):
+            return
+        self.current_hp = max(self.max_hp * 0.20, 1.0)
+        self.log_action(
+            logger,
+            "passive",
+            f"羽翼庇护发动, 复活并恢复至 {self.current_hp:.2f}/{self.max_hp:.2f}",
         )

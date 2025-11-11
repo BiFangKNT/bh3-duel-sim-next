@@ -86,7 +86,7 @@ class Bronya(BaseCharacter):
             if not opponent.is_alive:
                 break
         if opponent.is_alive and self.roll_chance(0.25):
-            opponent.states["混乱"] = {"剩余回合": 1}
+            opponent.apply_state("混乱", {"剩余回合": 1}, logger)
             logger.emit(opponent.name, "passive", f"{self.name} 触发混乱, 将自伤 1 回合")
         return False
 

@@ -4,18 +4,21 @@ from __future__ import annotations
 
 from ...logger import BattleLogger
 from ...stats import CombatStats
-from ..base import BaseCharacter
+from ..base import ATTRIBUTE_DEBUFF_STATES, CONTROL_STATES, BaseCharacter
 
 
-class Lita(BaseCharacter):
-    """丽塔: 高速削甲并反击的刺客."""
+class Theresa(BaseCharacter):
+    """德丽莎: 抵御控制即回复, 攻击封锁对手被动."""
+
+    NEGATIVE_STATE_NAMES = ATTRIBUTE_DEBUFF_STATES | CONTROL_STATES
+    PASSIVE_MARK_KEY = "theresa_passive_mark"
 
     def __init__(self) -> None:
         super().__init__(
-            name="丽塔",
-            stats=CombatStats(max_hp=100.0, attack=22.0, defense=9.0, speed=25.0),
+            name="德丽莎",
+            stats=CombatStats(max_hp=100.0, attack=23.0, defense=7.0, speed=24.0),
         )
-        self.configure_active_cooldown(2)
+        self.configure_active_cooldown(3)
         self._stunned = False
         self._confused = False
 
@@ -27,9 +30,32 @@ class Lita(BaseCharacter):
     def apply_state_effects(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         self._stunned = False
         self._confused = False
+        self._trigger_sanctified_blood(logger)
         self._handle_bleed(logger)
         self._handle_stun(logger)
         self._handle_confusion(logger)
+        self._handle_defense_break(logger)
+
+    def _trigger_sanctified_blood(self, logger: BattleLogger) -> None:
+        for state_name in list(self.states.keys()):
+            if state_name not in self.NEGATIVE_STATE_NAMES:
+                continue
+            self._try_sanctified_heal(state_name, logger)
+
+    def _try_sanctified_heal(self, state_name: str, logger: BattleLogger) -> None:
+        state = self.states.get(state_name)
+        if not state:
+            return
+        if state.get(self.PASSIVE_MARK_KEY):
+            return
+        state[self.PASSIVE_MARK_KEY] = 1.0
+        heal_value = max(0.0, self.max_hp * 0.10)
+        self.heal(heal_value, logger, "被动:圣血赐福")
+
+    def on_state_inflicted(self, state_name: str, logger: BattleLogger) -> None:
+        super().on_state_inflicted(state_name, logger)
+        if state_name in self.NEGATIVE_STATE_NAMES:
+            self._try_sanctified_heal(state_name, logger)
 
     def _handle_bleed(self, logger: BattleLogger) -> None:
         def effect(state: dict[str, float], remaining: int) -> None:
@@ -73,13 +99,21 @@ class Lita(BaseCharacter):
     def use_active_skill(self, opponent: BaseCharacter, logger: BattleLogger) -> bool:
         if not self.consume_active_charge():
             return False
-        damage = self.calculate_skill_damage(15.0, opponent)
-        self.log_action(logger, "active", f"发动削甲迅袭, 造成 {damage:.2f} 并降低对方防御")
-        opponent.take_damage(damage, logger, "主动技能", attacker=self)
-        current = opponent.states.get("减防", {"剩余回合": 0, "减防": 0.0})
-        current["剩余回合"] = 2
-        current["减防"] = current.get("减防", 0.0) + 3.0
-        opponent.apply_state("减防", current, logger)
+        self.log_action(logger, "active", "发动圣血祷言, 本回合以主动替换普攻")
+        if self.roll_chance(0.70):
+            damage = self.calculate_skill_damage(30.0, opponent)
+            self.log_action(logger, "active", f"祷言命中, 造成 {damage:.2f} 点伤害")
+            opponent.take_damage(damage, logger, "主动技能", attacker=self)
+        else:
+            self.log_action(
+                logger,
+                "active",
+                "祷言失误, 仅造成 1 点真实伤害并回复 18 点生命",
+            )
+            opponent.take_damage(1.0, logger, "主动技能", ignore_shield=True, attacker=self)
+            self.heal(18.0, logger, "主动技能:圣血恢复")
+        if opponent.is_alive:
+            self._try_disable_opponent_passive(opponent, logger, "主动技能")
         return True
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
@@ -92,33 +126,15 @@ class Lita(BaseCharacter):
             self.take_damage(damage, logger, "混乱误伤")
             return
         super().perform_basic_attack(opponent, logger)
+        if opponent.is_alive:
+            self._try_disable_opponent_passive(opponent, logger, "普攻")
 
-    def take_damage(
-        self,
-        amount: float,
-        logger: BattleLogger,
-        source: str,
-        *,
-        ignore_shield: bool = False,
-        attacker: BaseCharacter | None = None,
+    def _try_disable_opponent_passive(
+        self, opponent: BaseCharacter, logger: BattleLogger, source: str
     ) -> None:
-        category = logger.classify_source(source)
-        # 被动判定“主动攻击”：只要不是状态/治疗/被动来源的直接伤害(含普攻)，都视为可闪避对象.
-        is_direct_attack = category not in {"state", "heal", "passive"}
-        if is_direct_attack and attacker and self.roll_chance(0.18):
-            self.log_action(logger, "passive", "成功闪避并反击 12 点伤害")
-            attacker.take_damage(
-                12.0,
-                logger,
-                "被动:闪避反击",
-                ignore_shield=False,
-                attacker=self,
-            )
+        if not opponent.is_alive:
             return
-        super().take_damage(
-            amount,
-            logger,
-            source,
-            ignore_shield=ignore_shield,
-            attacker=attacker,
-        )
+        if not self.roll_chance(0.25):
+            return
+        opponent.apply_state("被动封锁", {"剩余回合": 2}, logger)
+        logger.emit(opponent.name, "state", f"{self.name} 的{source}使被动失效 2 回合")
