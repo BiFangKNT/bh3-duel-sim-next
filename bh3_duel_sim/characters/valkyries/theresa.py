@@ -138,4 +138,4 @@ class Theresa(BaseCharacter):
         if not self.roll_chance(0.25):
             return
         opponent.apply_state("被动封锁", {"剩余回合": 2}, logger)
-        logger.emit(opponent.name, "state", f"{self.name} 的{source}使被动失效 2 回合")
+        logger.emit(opponent.name, "state", f"由于 {self.name} 的被动技能，自身被动触发失败")

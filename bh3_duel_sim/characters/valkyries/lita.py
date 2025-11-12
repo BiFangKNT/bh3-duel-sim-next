@@ -10,6 +10,9 @@ from ..base import BaseCharacter
 class Lita(BaseCharacter):
     """丽塔: 高速削甲并反击的刺客."""
 
+    COUNTER_BASE_DAMAGE = 12.0
+    ARMOR_SHRED_VALUE = 3.0
+
     def __init__(self) -> None:
         super().__init__(
             name="丽塔",
@@ -78,7 +81,7 @@ class Lita(BaseCharacter):
         opponent.take_damage(damage, logger, "主动技能", attacker=self)
         current = opponent.states.get("减防", {"剩余回合": 0, "减防": 0.0})
         current["剩余回合"] = 2
-        current["减防"] = current.get("减防", 0.0) + 3.0
+        current["减防"] = self.ARMOR_SHRED_VALUE
         opponent.apply_state("减防", current, logger)
         return True
 
@@ -108,7 +111,7 @@ class Lita(BaseCharacter):
             and not self.is_passive_blocked()
             and self.roll_chance(0.18)
         ):
-            damage = self.calculate_basic_damage(attacker)
+            damage = max(0.0, self.COUNTER_BASE_DAMAGE - attacker.effective_defense())
             self.log_action(
                 logger,
                 "passive",
