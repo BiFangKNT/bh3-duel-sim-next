@@ -84,10 +84,7 @@ class Lita(BaseCharacter):
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         if self._confused:
-            damage = max(
-                0.05 * self.effective_attack(),
-                self.effective_attack() - self.effective_defense(),
-            )
+            damage = self.calculate_basic_damage(self)
             self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
@@ -111,9 +108,14 @@ class Lita(BaseCharacter):
             and not self.is_passive_blocked()
             and self.roll_chance(0.18)
         ):
-            self.log_action(logger, "passive", "成功闪避并反击 12 点伤害")
+            damage = self.calculate_basic_damage(attacker)
+            self.log_action(
+                logger,
+                "passive",
+                f"成功闪避并反击, 预计伤害 {damage:.2f}",
+            )
             attacker.take_damage(
-                12.0,
+                damage,
                 logger,
                 "被动:闪避反击",
                 ignore_shield=False,

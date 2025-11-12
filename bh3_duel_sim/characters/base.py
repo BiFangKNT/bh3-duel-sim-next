@@ -51,6 +51,11 @@ class BaseCharacter:
         floor = raw * 0.05  # 最低伤害,防止被完全抵消
         return max(mitigated, floor)
 
+    def calculate_basic_damage(self, opponent: BaseCharacter) -> float:
+        """普攻伤害计算: 攻防相抵, 不提供兜底伤害."""
+        raw = self.effective_attack() - opponent.effective_defense()
+        return max(0.0, raw)
+
     def configure_active_cooldown(self, turns: int) -> None:
         """设置主动技能冷却回合数."""
         cd = max(1, int(turns))
@@ -255,9 +260,7 @@ class BaseCharacter:
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         """默认普攻,按攻防差造成伤害."""
-        raw = max(
-            0.05 * self.effective_attack(), self.effective_attack() - opponent.effective_defense()
-        )
+        raw = self.calculate_basic_damage(opponent)
         self.log_action(logger, "basic", f"进行普攻, 预期伤害 {raw:.2f}")
         opponent.take_damage(raw, logger, "普攻", attacker=self)
 

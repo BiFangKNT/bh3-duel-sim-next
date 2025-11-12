@@ -95,10 +95,7 @@ class Vita(BaseCharacter):
 
     def perform_basic_attack(self, opponent: BaseCharacter, logger: BattleLogger) -> None:
         if self._confused:
-            damage = max(
-                0.05 * self.effective_attack(),
-                self.effective_attack() - self.effective_defense(),
-            )
+            damage = self.calculate_basic_damage(self)
             self.log_action(logger, "state", f"因混乱攻击自己, 预计伤害 {damage:.2f}")
             self.take_damage(damage, logger, "混乱误伤")
             return
